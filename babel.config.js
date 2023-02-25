@@ -1,0 +1,20 @@
+module.exports = {
+  presets: [
+    [
+      // ES features necessary for user's Node version
+      require("@babel/preset-env").default,
+      {
+        targets: {
+          node: "current",
+        },
+      },
+    ],
+    [
+      require("@babel/preset-typescript").default,
+      {
+        allowDeclareFields: true,
+      },
+    ],
+  ],
+  plugins: [["@babel/plugin-transform-runtime"]],
+};
