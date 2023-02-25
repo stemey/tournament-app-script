@@ -170,7 +170,7 @@ namespace Module {
       .build();
   }
 
-  function getGroupName(playerName: string) {
+  export function getGroupName(playerName: string) {
     const group = getPlayerGroups().groups.find(
       (g) => g.players.indexOf(playerName) >= 0
     );

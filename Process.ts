@@ -69,7 +69,7 @@ namespace Module {
     const range = sheet.getDataRange();
     const rows = range.getHeight();
     const columns = range.getWidth();
-    const groupResults = {};
+    const groupResults: {[name:string]:GroupResult} = {};
     for (let row = 2; row <= rows; row++) {
       const player1 = range.getCell(row, 2).getValue();
       const player2 = range.getCell(row, 3).getValue();
@@ -80,9 +80,7 @@ namespace Module {
         const groupName2 = getGroupName(player2);
         if (groupName1 === groupName2) {
           if (!groupResults[groupName1]) {
-            const players = getPlayerGroups().find(
-              (g) => g.name == groupName1
-            ).players;
+            const players = getPlayerGroups().getGroupByName(g.name).players;
             groupResults[groupName1] = new GroupResult(players);
           }
           const groupResult = groupResults[groupName1];

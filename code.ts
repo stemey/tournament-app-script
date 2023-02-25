@@ -1,13 +1,12 @@
 const SHEET_PLAYERS = "Player Group";
 const SHEET_BRACKET = "Bracket";
 const SHEET_GROUP = "Group";
+
+
 namespace Module {
   /**
    * Adds a custom menu item to run the script.
    */
-  function onOpen() {
-    TournamentState.getInstance().updateMenu();
-  }
 
   export class AllGroups {
     getGroupByName(name: String) {

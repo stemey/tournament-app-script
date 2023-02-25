@@ -61,18 +61,4 @@ namespace Module {
     }
   }
 
-  export function startRegistrationPhase() {
-    createRegistrationForm();
-    TournamentState.getInstance().phase = "REGISTRATION";
-  }
-
-  export function startGroupPhase() {
-    createGroupStage();
-    TournamentState.getInstance().phase = "GROUP";
-  }
-
-  export function startKoPhase() {
-    renderBracket();
-    TournamentState.getInstance().phase = "KO";
-  }
 }
