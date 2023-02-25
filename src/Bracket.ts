@@ -1,4 +1,4 @@
-import { SHEET_BRACKET } from "./code";
+import { getPlayerGroups, SHEET_BRACKET } from "./code";
 import { MatchResult } from "./MatchResult";
 import { Result } from "./Result";
 import { getMetaData } from "./utils/getMetaData";
@@ -7,7 +7,7 @@ const CONNECTOR_WIDTH = 15;
 
 const PLAYER_WIDTH = 100;
 export class Bracket {
-  declare private playerCount: number;
+  private declare playerCount: number;
 
   constructor(playerCount?: number) {
     let ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -167,6 +167,13 @@ function setBracketItem_(cell: GoogleAppsScript.Spreadsheet.Range) {
   const opponent = cell.offset(1, 0);
 
   opponent.setBackground("yellow");
+
+  const players = getPlayerGroups().players;
+  var dropdown = cell.offset(0, 0, 2, 1);
+  var rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(players)
+    .build();
+  dropdown.setDataValidation(rule);
 
   cell.offset(0, 1, 2, 3).setBackground("lightgrey");
 

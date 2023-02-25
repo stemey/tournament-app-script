@@ -1,4 +1,5 @@
 import { getMetaData } from "./utils/getMetaData";
+import { setMetaData } from "./utils/setMetaData";
 
 const startRegistrationMenu = {
   name: "Starte Registrierung",
@@ -17,11 +18,10 @@ const updateSheet = { name: "Update Sheets", functionName: "updateSheets" };
 export type Phase = "INITIAL" | "REGISTRATION" | "GROUP" | "KO";
 
 export class TournamentState {
-  declare private _phase: Phase;
+  private declare _phase: Phase;
   constructor() {
     this._phase =
-      getMetaData(SpreadsheetApp.getActiveSpreadsheet(), "PHASE") ||
-      "INITIAL";
+      getMetaData(SpreadsheetApp.getActiveSpreadsheet(), "PHASE") || "INITIAL";
   }
   updateMenu() {
     switch (this.phase) {
@@ -42,7 +42,7 @@ export class TournamentState {
 
   set phase(phase) {
     this._phase = phase;
-    SpreadsheetApp.getActiveSpreadsheet().addDeveloperMetadata("PHASE", phase);
+    setMetaData(SpreadsheetApp.getActiveSpreadsheet(), "PHASE", phase);
     this.updateMenu();
   }
 

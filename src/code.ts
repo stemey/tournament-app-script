@@ -32,7 +32,6 @@ export function getPlayerGroups(): AllGroups {
   let firstColumn = firstCell.offset(0, 0, sheetControl.getMaxRows(), 1);
   let players = firstColumn.getValues();
 
-  let numPlayers = 0;
   let currentGroup: PlayerGroup | undefined = undefined;
   for (let i = 0; i < players.length; i++) {
     if (!players[i][0] || players[i][0].length == 0) {
@@ -40,7 +39,6 @@ export function getPlayerGroups(): AllGroups {
       continue;
     }
     if (!currentGroup) {
-      console.log("new group", players[i][0]);
       currentGroup = new PlayerGroup([], players[i][0]);
       groups.push(currentGroup);
     } else {

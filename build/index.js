@@ -40,7 +40,6 @@ function getPlayerGroups() {
       continue;
     }
     if (!currentGroup) {
-      console.log("new group", players[i][0]);
       currentGroup = new PlayerGroup([], players[i][0]);
       groups.push(currentGroup);
     } else {
@@ -203,6 +202,10 @@ function setBracketItem_(cell) {
   cell.setBackground("yellow");
   const opponent = cell.offset(1, 0);
   opponent.setBackground("yellow");
+  const players = getPlayerGroups().players;
+  var dropdown = cell.offset(0, 0, 2, 1);
+  var rule = SpreadsheetApp.newDataValidation().requireValueInList(players).build();
+  dropdown.setDataValidation(rule);
   cell.offset(0, 1, 2, 3).setBackground("lightgrey");
   cell.getSheet().setColumnWidth(cell.getColumn() + 0, PLAYER_WIDTH);
   cell.getSheet().setColumnWidth(cell.getColumn() + 1, CONNECTOR_WIDTH);
@@ -446,6 +449,14 @@ function renderGroupStage() {
   });
 }
 
+function setMetaData(sheet, key, value) {
+  const metaData = sheet.getDeveloperMetadata().find(d => d.getKey() === key);
+  if (metaData) {
+    metaData.setValue(value);
+  }
+  sheet.addDeveloperMetadata(key, value);
+}
+
 const startRegistrationMenu = {
   name: "Starte Registrierung",
   functionName: "startRegistrationPhase"
@@ -484,7 +495,7 @@ class TournamentState {
   }
   set phase(phase) {
     this._phase = phase;
-    SpreadsheetApp.getActiveSpreadsheet().addDeveloperMetadata("PHASE", phase);
+    setMetaData(SpreadsheetApp.getActiveSpreadsheet(), "PHASE", phase);
     this.updateMenu();
   }
   get phase() {
@@ -502,72 +513,96 @@ function hasMetaData(sheet, key, value) {
   return getMetaData(sheet, key) === value;
 }
 
+const GROUP_MATCH_COUNT = "GROUP_MATCH_COUNT";
+class MatchForm {
+  switchToKo() {
+    const results = this.createMatchResults();
+    SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = this.getSheet();
+    setMetaData(sheet, GROUP_MATCH_COUNT, results.length);
+    const range = this.getSheet().getRange(1, 1, results.length, 4);
+    range.setBackground("lightgreen");
+  }
+  get groupMatchCount() {
+    return parseInt(getMetaData(this.getSheet(), GROUP_MATCH_COUNT));
+  }
+  onMatchFormSubmit() {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (TournamentState.getInstance().phase === "KO") {
+      const results = this.createMatchResults();
+      const bracket = createBracket();
+      bracket.addResults(results);
+      return;
+    }
+    const groupResults = this.createGroupResult();
+    Object.keys(groupResults).forEach(groupName => {
+      const groupResult = groupResults[groupName];
+      const groupTable = getGroupTable(ss, groupName);
+      groupResult.allMatches.forEach(r => groupTable.addResult(r.player1, r.player2, r.result));
+      getGroupTable(SpreadsheetApp.getActiveSpreadsheet(), groupName).addGroupResult(groupResult);
+    });
+  }
+  getSheet() {
+    return SpreadsheetApp.getActiveSpreadsheet().getSheets().find(s => hasMetaData(s, FORM_TYPE, FORM_TYPE_MATCH));
+  }
+  createMatchResults() {
+    const sheet = this.getSheet();
+    const range = sheet.getDataRange();
+    const rows = range.getHeight();
+    const startRow = TournamentState.getInstance().phase === "KO" ? this.groupMatchCount + 2 : 2;
+    const matches = {};
+    for (let row = startRow; row <= rows; row++) {
+      const player1 = range.getCell(row, 2).getValue();
+      const player2 = range.getCell(row, 3).getValue();
+      const resultAsString = range.getCell(row, 4).getValue();
+      const result = Result.fromString(resultAsString);
+      if (result && result.valid) {
+        matches[[player1, player2].sort().join("-")] = {
+          player1,
+          player2,
+          result
+        };
+      }
+    }
+    return Object.values(matches);
+  }
+  createGroupResult() {
+    const sheet = this.getSheet();
+    const range = sheet.getDataRange();
+    const rows = range.getHeight();
+    const groupResults = {};
+    for (let row = 2; row <= rows; row++) {
+      const player1 = range.getCell(row, 2).getValue();
+      const player2 = range.getCell(row, 3).getValue();
+      const resultAsString = range.getCell(row, 4).getValue();
+      const result = Result.fromString(resultAsString);
+      if (result && result.valid) {
+        const groupName1 = getGroupName(player1);
+        const groupName2 = getGroupName(player2);
+        if (groupName1 === groupName2) {
+          if (!groupResults[groupName1]) {
+            const players = getPlayerGroups().getGroupByName(groupName1).players;
+            groupResults[groupName1] = new GroupResult(players);
+          }
+          const groupResult = groupResults[groupName1];
+          groupResult.addMatch(player1, player2, result);
+        }
+      }
+    }
+    Object.values(groupResults).forEach(g => g.init());
+    return groupResults;
+  }
+  static getInstance() {
+    return INSTANCE;
+  }
+}
+const INSTANCE = new MatchForm();
+
 const FORM_TYPE = "FORM_TYPE";
 const FORM_TYPE_MATCH = "FORM_TYPE_MATCH";
 const FORM_TYPE_REGISTRATION = "FORM_TYPE_REGISTRATION";
 function onMatchFormSubmit() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (TournamentState.getInstance().phase === "KO") {
-    const bracket = createBracket();
-    bracket.addResults(createKoResult());
-    return;
-  }
-  //return
-
-  const groupResults = createGroupResult();
-  Object.keys(groupResults).forEach(groupName => {
-    const groupResult = groupResults[groupName];
-    const groupTable = getGroupTable(ss, groupName);
-    groupResult.allMatches.forEach(r => groupTable.addResult(r.player1, r.player2, r.result));
-    getGroupTable(SpreadsheetApp.getActiveSpreadsheet(), groupName).addGroupResult(groupResult);
-  });
-}
-function createKoResult() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets().find(s => hasMetaData(s, FORM_TYPE, FORM_TYPE_MATCH));
-  const range = sheet.getDataRange();
-  const rows = range.getHeight();
-  const matches = {};
-  for (let row = 2; row <= rows; row++) {
-    const player1 = range.getCell(row, 2).getValue();
-    const player2 = range.getCell(row, 3).getValue();
-    const resultAsString = range.getCell(row, 4).getValue();
-    const result = Result.fromString(resultAsString);
-    if (result && result.valid) {
-      matches[[player1, player2].sort().join("-")] = {
-        player1,
-        player2,
-        result
-      };
-    }
-  }
-  return Object.values(matches);
-}
-function createGroupResult() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets().find(s => hasMetaData(s, FORM_TYPE, FORM_TYPE_MATCH));
-  const range = sheet.getDataRange();
-  const rows = range.getHeight();
-  range.getWidth();
-  const groupResults = {};
-  for (let row = 2; row <= rows; row++) {
-    const player1 = range.getCell(row, 2).getValue();
-    const player2 = range.getCell(row, 3).getValue();
-    const resultAsString = range.getCell(row, 4).getValue();
-    const result = Result.fromString(resultAsString);
-    if (result && result.valid) {
-      const groupName1 = getGroupName(player1);
-      const groupName2 = getGroupName(player2);
-      if (groupName1 === groupName2) {
-        if (!groupResults[groupName1]) {
-          const players = getPlayerGroups().getGroupByName(groupName1).players;
-          groupResults[groupName1] = new GroupResult(players);
-        }
-        const groupResult = groupResults[groupName1];
-        groupResult.addMatch(player1, player2, result);
-      }
-    }
-  }
-  Object.values(groupResults).forEach(g => g.init());
-  return groupResults;
+  MatchForm.getInstance().onMatchFormSubmit();
 }
 
 const DEV_DATA_FORM_ID = "FORM_ID";
@@ -669,17 +704,13 @@ function startGroupPhase() {
 }
 function startKoPhase() {
   createSheetIfNecessary(SHEET_BRACKET);
+  MatchForm.getInstance().switchToKo();
+
+  // mark position in player group when ko starts
+
   renderBracket();
   TournamentState.getInstance().phase = "KO";
 }
 function updateSheets() {
-  const phase = TournamentState.getInstance().phase;
-  switch (phase) {
-    case "GROUP":
-      renderGroupStage();
-      break;
-    case "KO":
-      renderBracket();
-      break;
-  }
+  MatchForm.getInstance().onMatchFormSubmit();
 }

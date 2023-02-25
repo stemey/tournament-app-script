@@ -2,6 +2,7 @@ import { renderBracket } from "./Bracket";
 import { SHEET_BRACKET, SHEET_GROUP, SHEET_PLAYERS } from "./code";
 import { createMatchForm, createRegistrationForm } from "./form";
 import { renderGroupStage } from "./GroupTable";
+import { MatchForm } from "./MatchForm";
 import { TournamentState } from "./State";
 import { createSheetIfNecessary } from "./utils/createSheetIfNecessary";
 
@@ -25,6 +26,7 @@ function startGroupPhase() {
 
 function startKoPhase() {
   createSheetIfNecessary(SHEET_BRACKET);
+  MatchForm.getInstance().switchToKo();
 
 
   // mark position in player group when ko starts
@@ -35,13 +37,5 @@ function startKoPhase() {
 }
 
 function updateSheets() {
-  const phase = TournamentState.getInstance().phase;
-  switch (phase) {
-    case "GROUP":
-      renderGroupStage();
-      break;
-    case "KO":
-      renderBracket();
-      break;
-  }
+  MatchForm.getInstance().onMatchFormSubmit();
 }
