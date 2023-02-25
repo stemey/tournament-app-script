@@ -1,7 +1,30 @@
 {
   "timeZone": "America/New_York",
-  "dependencies": {
-  },
+  "dependencies": {},
   "exceptionLogging": "STACKDRIVER",
-  "runtimeVersion": "V8"
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.locale",
+    "https://www.googleapis.com/auth/forms"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Tournament",
+      "logoUrl": "https://www.gstatic.com/images/icons/material/system/1x/pets_black_48dp.png",
+      "useLocaleFromApp": true,
+      "universalActions": [
+        {
+          "label": "Learn more about Cataas",
+          "openLink": "https://cataas.com"
+        }
+      ]
+    },
+    "sheets": {
+      "homepageTrigger": {
+        "runFunction": "start",
+        "enabled": true
+      }
+    }
+  }
 }

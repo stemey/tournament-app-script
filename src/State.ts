@@ -51,7 +51,9 @@ export class TournamentState {
   }
 
   createMenu(items) {
-    SpreadsheetApp.getActiveSpreadsheet().addMenu("Turnier", items);
+    const menu = SpreadsheetApp.getUi().createAddonMenu();
+    items.forEach((item) => menu.addItem(item.name, item.functionName));
+    menu.addToUi();
   }
 
   static getInstance() {

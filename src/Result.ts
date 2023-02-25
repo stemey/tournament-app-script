@@ -2,7 +2,7 @@
     constructor(readonly sets: number[][]) {}
 
     get valid() {
-      return this.sets.length >= 2;
+      return this.sets.length >= 2 && this.sets.every(s => s[0]>0 && s[1]>0);
     }
 
     public reverse() {

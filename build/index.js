@@ -54,7 +54,7 @@ class Result {
     this.sets = sets;
   }
   get valid() {
-    return this.sets.length >= 2;
+    return this.sets.length >= 2 && this.sets.every(s => s[0] > 0 && s[1] > 0);
   }
   reverse() {
     return new Result(this.sets.map(s => [s[1], s[0]]));
@@ -108,12 +108,21 @@ class Bracket {
     this.playerCount = playerCount || getMetaData(sheetResults, "PLAYER_COUNT");
   }
   addResults(results) {
+    const updatedItems = [];
     results.forEach(r => {
       const item = this.findItem(r.player1, r.player2);
       if (item) {
-        item.setResult(r.result);
+        item.setResult(r);
+        updatedItems.push(item);
       }
     });
+    updatedItems.forEach(item => this.updateChild(item));
+  }
+  updateChild(item) {
+    if (item.child && !item.child.result.valid) {
+      const cellIndex = item.index % 2;
+      item.child.setPlayer(cellIndex, item.winner);
+    }
   }
   findItem(player1, player2) {
     return this.items.find(i => i.match(player1, player2));
@@ -123,36 +132,65 @@ class Bracket {
     let ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheetResults = ss.getSheetByName(SHEET_BRACKET);
     let upperPower = Math.ceil(Math.log(this.playerCount) / Math.log(2));
-    for (let i = 0; i < upperPower; i++) {
+    for (let i = upperPower - 1; i >= 0; i--) {
       let count = Math.pow(2, upperPower - i - 1);
       let distance = Math.pow(2, i) * 4;
       let first = distance / 2 - 1;
       for (let j = 0; j < count; j++) {
-        items.push(new Item(sheetResults.getRange(j * distance + first, i * 6 + 1, 2, 3)));
+        const child = items.find(itm => itm.round === i + 1 && itm.index == Math.trunc(j / 2));
+        const item = new Item(i, j, child, sheetResults.getRange(j * distance + first, i * 6 + 1, 2, 3));
+        items.push(item);
       }
     }
     return items;
   }
 }
+function parseInteger(value) {
+  const num = parseInt(value, 10);
+  if (isNaN(num)) {
+    return undefined;
+  }
+  return num;
+}
 class Item {
-  constructor(rng) {
+  constructor(round, index, child, rng) {
+    this.round = round;
+    this.index = index;
+    this.child = child;
     this.rng = rng;
     this.player1 = rng.offset(0, 0, 1, 1).getValue();
     this.player2 = rng.offset(1, 0, 1, 1).getValue();
-    const sets = [1, 2, 3].map(col => [parseInt(rng.offset(0, col, 1, 1).getValue()), parseInt(rng.offset(0, col, 1, 1).getValue())]);
+    const sets = [1, 2, 3].filter(col => {
+      const a = parseInteger(rng.offset(0, col, 1, 1).getValue());
+      const b = parseInteger(rng.offset(0, col, 1, 1).getValue());
+      return typeof a === "number" && typeof b === "number";
+    }).map(col => [parseInteger(rng.offset(0, col, 1, 1).getValue()), parseInteger(rng.offset(0, col, 1, 1).getValue())]);
     this.result = new Result(sets);
+  }
+  get winner() {
+    if (this.result.win) {
+      return this.player1;
+    } else {
+      return this.player2;
+    }
+  }
+  setPlayer(index, player) {
+    this.rng.offset(index, 0, 1, 1).setValue(player);
   }
   match(player1, player2) {
     return this.player1 === player1 && this.player2 == player2 || this.player1 === player2 && this.player2 == player1;
   }
   setResult(matchResult) {
     if (this.player1 == matchResult.player1) {
-      this.result = matchResult.reverse();
+      this.result = matchResult.result;
     } else {
-      this.result = matchResult;
+      this.result = matchResult.result.reverse();
     }
     [1, 2, 3].forEach(col => {
       if (this.result.sets.length >= col) {
+        let winnerIndex = this.result.win ? 0 : 1;
+        this.rng.offset(0, 0, 1, 4).setFontWeight(winnerIndex === 0 ? "bold" : "normal");
+        this.rng.offset(1, 0, 1, 4).setFontWeight(winnerIndex === 1 ? "bold" : "normal");
         this.rng.offset(0, col, 1, 1).setValue(this.result.sets[col - 1][0]);
         this.rng.offset(1, col, 1, 1).setValue(this.result.sets[col - 1][1]);
       } else {
@@ -502,7 +540,9 @@ class TournamentState {
     return this._phase;
   }
   createMenu(items) {
-    SpreadsheetApp.getActiveSpreadsheet().addMenu("Turnier", items);
+    const menu = SpreadsheetApp.getUi().createAddonMenu();
+    items.forEach(item => menu.addItem(item.name, item.functionName));
+    menu.addToUi();
   }
   static getInstance() {
     return new TournamentState();
@@ -688,7 +728,16 @@ function createSheetIfNecessary(name) {
   }
 }
 
+function onInstall(e) {
+  start();
+}
+function start() {
+  Logger.log("start");
+  TournamentState.getInstance().updateMenu();
+  Logger.log("end");
+}
 function onOpen() {
+  // PROBABLY NEVER CALLED
   TournamentState.getInstance().updateMenu();
 }
 function startRegistrationPhase() {

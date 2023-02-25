@@ -6,7 +6,21 @@ import { MatchForm } from "./MatchForm";
 import { TournamentState } from "./State";
 import { createSheetIfNecessary } from "./utils/createSheetIfNecessary";
 
+
+function onInstall(e) {
+  start();
+  }
+  
+  function start() {
+    Logger.log("start")
+    TournamentState.getInstance().updateMenu();
+    Logger.log("end")
+  
+  }
+  
+
 function onOpen() {
+  // PROBABLY NEVER CALLED
   TournamentState.getInstance().updateMenu();
 }
 
