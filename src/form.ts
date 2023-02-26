@@ -1,5 +1,9 @@
 import { getPlayerGroups } from "./code";
-import { FORM_TYPE, FORM_TYPE_MATCH, FORM_TYPE_REGISTRATION } from "./Process";
+import {
+  FORM_TYPE,
+  FORM_TYPE_MATCH,
+  FORM_TYPE_REGISTRATION,
+} from "./Process";
 
 const DEV_DATA_FORM_ID = "FORM_ID";
 function getCurrentSheets(ss) {
@@ -34,7 +38,7 @@ function deleteFormSheet(ss, name) {
 export function createMatchForm() {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  const sheetName = ss.getName() + " Match Formular";
+  const sheetName = "Match Formular";
 
   const sheet = ss.getSheetByName(sheetName);
   if (sheet) {
@@ -47,7 +51,7 @@ export function createMatchForm() {
   const playerGroups = getPlayerGroups();
   let players = playerGroups.players;
 
-  var form = FormApp.create(ss.getName() + " Match Formular");
+  var form = FormApp.create(sheetName);
   form.setDescription("Melde ein Ergebnis oder einen Spieltermin");
   form.addListItem().setTitle("Spieler/Team 1").setChoiceValues(players);
   form.addListItem().setTitle("Spieler/Team 2").setChoiceValues(players);
@@ -72,12 +76,14 @@ export function createMatchForm() {
   newSheet.setName(sheetName);
   newSheet.addDeveloperMetadata(DEV_DATA_FORM_ID, form.getId());
   newSheet.addDeveloperMetadata(FORM_TYPE, FORM_TYPE_MATCH);
+
+
 }
 
 export function createRegistrationForm() {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  const sheetName = ss.getName() + " Registrierungs Formular";
+  const sheetName = "Registrierungs Formular";
 
   const sheet = ss.getSheetByName(sheetName);
   if (sheet) {
@@ -87,7 +93,7 @@ export function createRegistrationForm() {
 
   const currentSheets = getCurrentSheets(ss);
 
-  var form = FormApp.create(ss.getName() + " Registrierungs Formular");
+  var form = FormApp.create("Registrierungs Formular");
   var item = form.addTextItem();
   item.setTitle("Name");
 

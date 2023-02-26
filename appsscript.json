@@ -6,7 +6,9 @@
   "oauthScopes": [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/script.locale",
-    "https://www.googleapis.com/auth/forms"
+    "https://www.googleapis.com/auth/forms",
+    "https://www.googleapis.com/auth/script.container.ui",
+    "https://www.googleapis.com/auth/script.scriptapp"
   ],
   "addOns": {
     "common": {

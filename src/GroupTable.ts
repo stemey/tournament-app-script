@@ -1,5 +1,6 @@
 import { AllGroups, getPlayerGroups, SHEET_GROUP } from "./code";
 import { onMatchFormSubmit } from "./Process";
+import { VirtualRange } from "./VirtualRange";
 
   export class GroupTable {
     declare private allGroups: AllGroups;
@@ -123,16 +124,18 @@ import { onMatchFormSubmit } from "./Process";
         cell.setValue(this.players[playerRowIdx]).setBackgroundColor("yellow");
       }
 
+      const bgRange = new VirtualRange(groupStartCell.getRow()+1, groupStartCell.getColumn()+1,this.players.length,this.players.length)
       for (let idx = 0; idx < this.players.length; idx++) {
         for (let idy = 0; idy < this.players.length; idy++) {
-          const cell = groupStartCell.offset(idy + 1, idx + 1);
           if (idx == idy) {
-            cell.setBackgroundColor("lightgreen");
+            bgRange.setValue("background",idy,idx,"lightgreen")
           } else {
-            cell.setBackgroundColor("lightyellow");
+            bgRange.setValue("background",idy,idx,"lightyellow")
           }
         }
       }
+
+      bgRange.render(groupStartCell.getSheet())
 
       const url = this.getPublishUrl(
         groupStartCell.getRowIndex(),

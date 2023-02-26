@@ -244,7 +244,6 @@ function setBracketItem_(cell: GoogleAppsScript.Spreadsheet.Range) {
  * @param {Range} rng The spreadsheet range.
  */
 function setConnector_(rng) {
-  Logger.log("rng" + rng.getWidth() + " " + rng.getHeight());
   rng.getSheet().setColumnWidth(rng.getColumnIndex(), CONNECTOR_WIDTH);
   //rng.setBackgroundColor('green');
   const centre = Math.trunc(rng.getHeight() / 2);

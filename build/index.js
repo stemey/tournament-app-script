@@ -257,7 +257,6 @@ function setBracketItem_(cell) {
  * @param {Range} rng The spreadsheet range.
  */
 function setConnector_(rng) {
-  Logger.log("rng" + rng.getWidth() + " " + rng.getHeight());
   rng.getSheet().setColumnWidth(rng.getColumnIndex(), CONNECTOR_WIDTH);
   //rng.setBackgroundColor('green');
   const centre = Math.trunc(rng.getHeight() / 2);
@@ -367,6 +366,45 @@ class GroupResult {
   }
 }
 
+class VirtualRange {
+  constructor(row, col, height, width) {
+    this.row = row;
+    this.col = col;
+    this.height = height;
+    this.width = width;
+    this.data = {};
+  }
+  init(name) {
+    const currData = this.data[name];
+    if (!currData) {
+      const currData = new Array(this.height);
+      for (let i = 0; i < this.height; i++) {
+        const col = new Array(this.width);
+        col.fill("");
+        currData[i] = col;
+      }
+      this.data[name] = currData;
+    }
+  }
+  setValue(name, row, col, value) {
+    this.init(name);
+    this.data[name][row][col] = value;
+  }
+  render(sheet) {
+    const range = sheet.getRange(this.row, this.col, this.height, this.width);
+    Object.keys(this.data).forEach(name => {
+      switch (name) {
+        case "background":
+          range.setBackgrounds(this.data[name]);
+          break;
+        case "value":
+          range.setValues(this.data[name]);
+          break;
+      }
+    });
+  }
+}
+
 class GroupTable {
   constructor(sheet, name) {
     this.sheet = sheet;
@@ -441,16 +479,17 @@ class GroupTable {
       const cell = groupStartCell.offset(playerRowIdx + 1, 0);
       cell.setValue(this.players[playerRowIdx]).setBackgroundColor("yellow");
     }
+    const bgRange = new VirtualRange(groupStartCell.getRow() + 1, groupStartCell.getColumn() + 1, this.players.length, this.players.length);
     for (let idx = 0; idx < this.players.length; idx++) {
       for (let idy = 0; idy < this.players.length; idy++) {
-        const cell = groupStartCell.offset(idy + 1, idx + 1);
         if (idx == idy) {
-          cell.setBackgroundColor("lightgreen");
+          bgRange.setValue("background", idy, idx, "lightgreen");
         } else {
-          cell.setBackgroundColor("lightyellow");
+          bgRange.setValue("background", idy, idx, "lightyellow");
         }
       }
     }
+    bgRange.render(groupStartCell.getSheet());
     const url = this.getPublishUrl(groupStartCell.getRowIndex(), groupStartCell.getColumnIndex(), this.players.length + 1, this.players.length + 1);
     groupStartCell.offset(this.players.length + 1, 0).setRichTextValue(getUrlAsRichtextValue("link", url));
     const resultStartCell = this.getResultStartCell();
@@ -641,6 +680,12 @@ const INSTANCE = new MatchForm();
 const FORM_TYPE = "FORM_TYPE";
 const FORM_TYPE_MATCH = "FORM_TYPE_MATCH";
 const FORM_TYPE_REGISTRATION = "FORM_TYPE_REGISTRATION";
+function installTournamentTriggers() {
+  const existingTrigger = ScriptApp.getProjectTriggers().find(t => t.getHandlerFunction() === "onTournamentFormSubmit");
+  if (!existingTrigger) {
+    ScriptApp.newTrigger("onTournamentFormSubmit").forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet()).onFormSubmit().create();
+  }
+}
 function onMatchFormSubmit() {
   MatchForm.getInstance().onMatchFormSubmit();
 }
@@ -671,7 +716,7 @@ function deleteFormSheet(ss, name) {
 }
 function createMatchForm() {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetName = ss.getName() + " Match Formular";
+  const sheetName = "Match Formular";
   const sheet = ss.getSheetByName(sheetName);
   if (sheet) {
     return;
@@ -681,7 +726,7 @@ function createMatchForm() {
   const currentSheets = getCurrentSheets(ss);
   const playerGroups = getPlayerGroups();
   let players = playerGroups.players;
-  var form = FormApp.create(ss.getName() + " Match Formular");
+  var form = FormApp.create(sheetName);
   form.setDescription("Melde ein Ergebnis oder einen Spieltermin");
   form.addListItem().setTitle("Spieler/Team 1").setChoiceValues(players);
   form.addListItem().setTitle("Spieler/Team 2").setChoiceValues(players);
@@ -699,14 +744,14 @@ function createMatchForm() {
 }
 function createRegistrationForm() {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetName = ss.getName() + " Registrierungs Formular";
+  const sheetName = "Registrierungs Formular";
   const sheet = ss.getSheetByName(sheetName);
   if (sheet) {
     return;
   }
   deleteFormSheet(ss, sheetName);
   const currentSheets = getCurrentSheets(ss);
-  var form = FormApp.create(ss.getName() + " Registrierungs Formular");
+  var form = FormApp.create("Registrierungs Formular");
   var item = form.addTextItem();
   item.setTitle("Name");
   form.addCheckboxItem().setTitle("Abmelden");
@@ -729,12 +774,20 @@ function createSheetIfNecessary(name) {
 }
 
 function onInstall(e) {
+  Logger.log("called install");
   start();
+}
+function onSidebar() {
+  Logger.log("called onSidebar");
+  var htmlOutput = HtmlService.createHtmlOutput("<p>A change of speed, a change of style...</p>");
+  SpreadsheetApp.getUi().showSidebar(htmlOutput);
 }
 function start() {
   Logger.log("start");
   TournamentState.getInstance().updateMenu();
+  onSidebar();
   Logger.log("end");
+  installTournamentTriggers();
 }
 function onOpen() {
   // PROBABLY NEVER CALLED
@@ -762,4 +815,13 @@ function startKoPhase() {
 }
 function updateSheets() {
   MatchForm.getInstance().onMatchFormSubmit();
+}
+function onTournamentFormSubmit(e) {
+  const range = e.range;
+  SpreadsheetApp.setActiveSpreadsheet(range.getSheet().getParent());
+  const sheetType = getMetaData(range.getSheet(), FORM_TYPE);
+  if (sheetType == FORM_TYPE_MATCH) {
+    onMatchFormSubmit();
+  }
+  Logger.log("form submit for " + range.getSheet().getName());
 }
