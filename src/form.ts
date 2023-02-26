@@ -1,16 +1,12 @@
 import { getPlayerGroups } from "./code";
-import {
-  FORM_TYPE,
-  FORM_TYPE_MATCH,
-  FORM_TYPE_REGISTRATION,
-} from "./Process";
+import { FORM_TYPE, FORM_TYPE_MATCH, FORM_TYPE_REGISTRATION } from "./Process";
 
 const DEV_DATA_FORM_ID = "FORM_ID";
 function getCurrentSheets(ss) {
   return ss.getSheets().map((s) => s.getName());
 }
 
-function getNewSheet(ss, currentSheets) {
+function getNewSheet(ss, currentSheets): GoogleAppsScript.Spreadsheet.Sheet {
   return ss.getSheets().find((s) => currentSheets.indexOf(s.getName()) < 0);
 }
 
@@ -78,6 +74,7 @@ export function createMatchForm() {
   newSheet.addDeveloperMetadata(FORM_TYPE, FORM_TYPE_MATCH);
 
 
+  newSheet.protect().setDescription("read only");
 }
 
 export function createRegistrationForm() {

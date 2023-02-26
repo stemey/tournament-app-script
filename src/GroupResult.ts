@@ -3,6 +3,10 @@ import { Result } from "./Result";
 
 export type Tuple = number[];
 
+export function formatTuple(tuple:Tuple) {
+  return tuple.map(s => String(s)).join(":");
+}
+
 export interface Stats {
   setpoints: Tuple;
   sets: Tuple;
@@ -32,6 +36,10 @@ export class GroupResult {
       // Logger.log("ignoring previous result " + key);
     }
     this.matches[key] = { player1, player2, result };
+  }
+
+  getPlayerStats(name:string) {
+    return this.playerStats.find(p => p.player==name)?.stats;
   }
 
   get allMatches() {

@@ -23,7 +23,16 @@ export class PlayerGroup {
   constructor(readonly players: string[], readonly name: string) {}
 }
 
+const playerGroupsWrapper: { value?: AllGroups } = {};
+
+export function invalidatePlayerGroups() {
+  playerGroupsWrapper.value=undefined;
+}
+
 export function getPlayerGroups(): AllGroups {
+  if (playerGroupsWrapper.value) {
+    return playerGroupsWrapper.value;
+  }
   const groups: PlayerGroup[] = [];
   let ss = SpreadsheetApp.getActiveSpreadsheet();
   let firstCell = ss.getRange(SHEET_PLAYERS + "!A1");
@@ -45,5 +54,6 @@ export function getPlayerGroups(): AllGroups {
       currentGroup.players.push(players[i][0]);
     }
   }
-  return new AllGroups(groups);
+  playerGroupsWrapper.value = new AllGroups(groups);
+  return playerGroupsWrapper.value;
 }

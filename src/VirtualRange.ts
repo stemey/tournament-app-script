@@ -3,6 +3,8 @@ export type FieldName = keyof FieldData;
 export interface FieldData {
   background?: string[][];
   value?: any[][];
+  fontcolor?: string[][];
+  numberformat?: string[][];
 }
 
 export class VirtualRange {
@@ -20,10 +22,10 @@ export class VirtualRange {
     const currData = this.data[name];
     if (!currData) {
       const currData = new Array(this.height);
-      for (let i =0;i<this.height;i++) {
+      for (let i = 0; i < this.height; i++) {
         const col = new Array(this.width);
-        col.fill("")
-        currData[i]=col
+        col.fill("");
+        currData[i] = col;
       }
       this.data[name] = currData;
     }
@@ -43,6 +45,12 @@ export class VirtualRange {
           break;
         case "value":
           range.setValues(this.data[name]);
+          break;
+        case "fontcolor":
+          range.setFontColors(this.data[name]);
+          break;
+        case "numberformat":
+          range.setNumberFormats(this.data[name]);
           break;
       }
     });

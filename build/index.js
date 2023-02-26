@@ -26,7 +26,14 @@ class PlayerGroup {
     this.name = name;
   }
 }
+const playerGroupsWrapper = {};
+function invalidatePlayerGroups() {
+  playerGroupsWrapper.value = undefined;
+}
 function getPlayerGroups() {
+  if (playerGroupsWrapper.value) {
+    return playerGroupsWrapper.value;
+  }
   const groups = [];
   let ss = SpreadsheetApp.getActiveSpreadsheet();
   let firstCell = ss.getRange(SHEET_PLAYERS + "!A1");
@@ -46,7 +53,8 @@ function getPlayerGroups() {
       currentGroup.players.push(players[i][0]);
     }
   }
-  return new AllGroups(groups);
+  playerGroupsWrapper.value = new AllGroups(groups);
+  return playerGroupsWrapper.value;
 }
 
 class Result {
@@ -266,6 +274,9 @@ function setConnector_(rng) {
   rng.offset(1, 0, rng.getHeight() - 1, 1).setBorder(false, false, true, true, false, false, "#000000", SpreadsheetApp.BorderStyle.SOLID_THICK);
 }
 
+function formatTuple(tuple) {
+  return tuple.map(s => String(s)).join(":");
+}
 class GroupResult {
   constructor(players) {
     this.players = players;
@@ -281,6 +292,9 @@ class GroupResult {
       player2,
       result
     };
+  }
+  getPlayerStats(name) {
+    return this.playerStats.find(p => p.player == name)?.stats;
   }
   get allMatches() {
     return Object.values(this.matches);
@@ -400,6 +414,12 @@ class VirtualRange {
         case "value":
           range.setValues(this.data[name]);
           break;
+        case "fontcolor":
+          range.setFontColors(this.data[name]);
+          break;
+        case "numberformat":
+          range.setNumberFormats(this.data[name]);
+          break;
       }
     });
   }
@@ -448,25 +468,43 @@ class GroupTable {
   }
   addGroupResult(result) {
     let groupStartCell = this.getResultStartCell();
-    this.players.forEach((name, idx) => {
-      const stats = result.calculate(name);
+    const groupRange = new VirtualRange(groupStartCell.getRow() + 1, groupStartCell.getColumn(), this.players.length, 5);
+    this.players.forEach(name => {
+      const stats = result.getPlayerStats(name);
       const row = stats.ranking;
-      groupStartCell.offset(row, 0).setValue(row).setBackgroundColor("red").setFontColor("white)");
-      groupStartCell.offset(row, 1).setValue(name).setBackgroundColor("yellow");
-      groupStartCell.offset(row, 2).setNumberFormat("@STRING@").setValue(this.format(stats.setpoints)).setBackgroundColor("lightcyan");
-      groupStartCell.offset(row, 3).setNumberFormat("@STRING@").setValue(this.format(stats.sets)).setBackgroundColor("lightgrey");
-      groupStartCell.offset(row, 4).setNumberFormat("@STRING@").setValue(this.format(stats.matches)).setBackgroundColor("lightyellow");
-      //groupStartCell.offset(row, 4).setValue(stats.ranking).setBackgroundColor("red").setFontColor("white")
+      groupRange.setValue("value", row, 0, String(stats.ranking + 1) + ".");
+      groupRange.setValue("value", row, 1, name);
+      groupRange.setValue("value", row, 2, formatTuple(stats.setpoints));
+      groupRange.setValue("value", row, 3, formatTuple(stats.sets));
+      groupRange.setValue("value", row, 4, formatTuple(stats.matches));
     });
+    groupRange.render(this.sheet);
   }
-
   getPublishUrl(col, row, width, height) {
     const id = SpreadsheetApp.getActiveSpreadsheet().getId();
     const rangeAsString = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0].getRange(col, row, width, height).getA1Notation();
     const sheetId = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getSheetId();
     return `https://docs.google.com/spreadsheet/pub?key=${id}&chrome=false&gid=${sheetId}&widget=false&range=${rangeAsString}`;
   }
-  initialize() {
+  renderStats() {
+    let groupStartCell = this.getResultStartCell();
+    const statsRange = new VirtualRange(groupStartCell.getRow(), groupStartCell.getColumn(), this.players.length + 1, 5);
+    this.players.forEach((name, idx) => {
+      const row = idx + 1;
+      statsRange.setValue("background", row, 0, "red");
+      statsRange.setValue("fontcolor", row, 0, "white");
+      statsRange.setValue("numberformat", row, 0, "@STRING@");
+      statsRange.setValue("background", row, 1, "yellow");
+      statsRange.setValue("background", row, 2, "lightcyan");
+      statsRange.setValue("numberformat", row, 2, "@STRING@");
+      statsRange.setValue("background", row, 3, "lightgrey");
+      statsRange.setValue("numberformat", row, 2, "@STRING@");
+      statsRange.setValue("background", row, 4, "lightyellow");
+      statsRange.setValue("numberformat", row, 2, "@STRING@");
+    });
+    statsRange.render(this.sheet);
+  }
+  render() {
     let groupStartCell = this.getStartCell();
     groupStartCell.setValue(this.name);
     groupStartCell = groupStartCell.offset(1, 0);
@@ -498,7 +536,7 @@ class GroupTable {
     resultStartCell.offset(0, 4).setValue("Spiele");
     const urlResult = this.getPublishUrl(resultStartCell.getRowIndex(), resultStartCell.getColumnIndex(), 5, this.players.length + 1);
     resultStartCell.offset(this.players.length + 1, 0).setRichTextValue(getUrlAsRichtextValue("link", urlResult));
-    onMatchFormSubmit();
+    this.renderStats();
   }
 }
 function getUrlAsRichtextValue(name, url) {
@@ -522,7 +560,7 @@ function renderGroupStage() {
   allGroups.groups.forEach(group => {
     console.log("group", group.name, group.players.length);
     const groupTable = new GroupTable(sheetGroup, group.name);
-    groupTable.initialize();
+    groupTable.render();
   });
 }
 
@@ -741,6 +779,7 @@ function createMatchForm() {
   newSheet.setName(sheetName);
   newSheet.addDeveloperMetadata(DEV_DATA_FORM_ID, form.getId());
   newSheet.addDeveloperMetadata(FORM_TYPE, FORM_TYPE_MATCH);
+  newSheet.protect().setDescription("read only");
 }
 function createRegistrationForm() {
   let ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -769,7 +808,17 @@ function createRegistrationForm() {
 function createSheetIfNecessary(name) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);
   if (!sheet) {
-    SpreadsheetApp.getActiveSpreadsheet().insertSheet(name);
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet(name);
+    const players = new VirtualRange(1, 1, 7, 1);
+    players.setValue("value", 0, 0, "Gruppe A");
+    players.setValue("value", 0, 0, "Willi");
+    players.setValue("value", 0, 0, "Hajo");
+    players.setValue("value", 0, 0, "");
+    players.setValue("value", 0, 0, "Gruppe B");
+    players.setValue("value", 0, 0, "Albert");
+    players.setValue("value", 0, 0, "Frank");
+    players.render(sheet);
+    Browser.msgBox("Bitte passe die Spielergruppen an");
   }
 }
 
@@ -789,6 +838,15 @@ function start() {
   Logger.log("end");
   installTournamentTriggers();
 }
+function onEdit(e) {
+  if (e.range.getSheet().getName() === SHEET_PLAYERS) {
+    Logger.log("edited players");
+    rerenderSheets();
+  }
+}
+function rerenderSheets() {
+  startGroupPhase();
+}
 function onOpen() {
   // PROBABLY NEVER CALLED
   TournamentState.getInstance().updateMenu();
@@ -800,6 +858,22 @@ function startRegistrationPhase() {
 function startGroupPhase() {
   createSheetIfNecessary(SHEET_GROUP);
   createSheetIfNecessary(SHEET_PLAYERS);
+  const groups = getPlayerGroups();
+  if (groups.groups.length === 0) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PLAYERS);
+    const players = new VirtualRange(1, 1, 7, 1);
+    players.setValue("value", 0, 0, "Gruppe A");
+    players.setValue("value", 1, 0, "Willi");
+    players.setValue("value", 2, 0, "Hajo");
+    players.setValue("value", 3, 0, "");
+    players.setValue("value", 4, 0, "Gruppe B");
+    players.setValue("value", 5, 0, "Albert");
+    players.setValue("value", 6, 0, "Frank");
+    players.render(sheet);
+    SpreadsheetApp.getActiveSpreadsheet().setActiveSheet(sheet);
+    Browser.msgBox("Bitte passe die Spielergruppen an");
+    invalidatePlayerGroups();
+  }
   createMatchForm();
   renderGroupStage();
   TournamentState.getInstance().phase = "GROUP";

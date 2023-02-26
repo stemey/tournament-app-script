@@ -1,20 +1,32 @@
 import { renderBracket } from "./Bracket";
-import { SHEET_BRACKET, SHEET_GROUP, SHEET_PLAYERS } from "./code";
+import {
+  getPlayerGroups,
+  invalidatePlayerGroups,
+  SHEET_BRACKET,
+  SHEET_GROUP,
+  SHEET_PLAYERS,
+} from "./code";
 import { createMatchForm, createRegistrationForm } from "./form";
 import { renderGroupStage } from "./GroupTable";
 import { MatchForm } from "./MatchForm";
-import { FORM_TYPE, FORM_TYPE_MATCH, installTournamentTriggers, onMatchFormSubmit } from "./Process";
+import {
+  FORM_TYPE,
+  FORM_TYPE_MATCH,
+  installTournamentTriggers,
+  onMatchFormSubmit,
+} from "./Process";
 import { TournamentState } from "./State";
 import { createSheetIfNecessary } from "./utils/createSheetIfNecessary";
 import { getMetaData } from "./utils/getMetaData";
+import { VirtualRange } from "./VirtualRange";
 
 function onInstall(e) {
-  Logger.log("called install")
+  Logger.log("called install");
   start();
 }
 
 function onSidebar() {
-  Logger.log("called onSidebar")
+  Logger.log("called onSidebar");
   var htmlOutput = HtmlService.createHtmlOutput(
     "<p>A change of speed, a change of style...</p>"
   );
@@ -26,7 +38,18 @@ function start() {
   TournamentState.getInstance().updateMenu();
   onSidebar();
   Logger.log("end");
-  installTournamentTriggers()
+  installTournamentTriggers();
+}
+
+function onEdit(e) {
+  if (e.range.getSheet().getName()===SHEET_PLAYERS) {
+    Logger.log("edited players")
+    rerenderSheets();
+  }
+}
+
+function rerenderSheets() {
+  startGroupPhase();
 }
 
 function onOpen() {
@@ -42,6 +65,24 @@ function startRegistrationPhase() {
 function startGroupPhase() {
   createSheetIfNecessary(SHEET_GROUP);
   createSheetIfNecessary(SHEET_PLAYERS);
+
+  const groups = getPlayerGroups();
+  if (groups.groups.length===0) {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_PLAYERS);
+    const players = new VirtualRange(1, 1, 7, 1);
+    players.setValue("value", 0, 0, "Gruppe A");
+    players.setValue("value", 1, 0, "Willi");
+    players.setValue("value", 2, 0, "Hajo");
+    players.setValue("value", 3, 0, "");
+    players.setValue("value", 4, 0, "Gruppe B");
+    players.setValue("value", 5, 0, "Albert");
+    players.setValue("value", 6, 0, "Frank");
+    players.render(sheet);
+    SpreadsheetApp.getActiveSpreadsheet().setActiveSheet(sheet)
+    Browser.msgBox("Bitte passe die Spielergruppen an");
+    invalidatePlayerGroups();
+  }
+
 
   createMatchForm();
   renderGroupStage();
